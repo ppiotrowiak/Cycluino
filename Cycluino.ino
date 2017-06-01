@@ -41,7 +41,30 @@ Adafruit_BMP280 bme;
 
 Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS,  TFT_DC, TFT_RST);
 
+//ustawienia cycluino
+volatile word steps;//load the variable from RAM and not from a storage register
+volatile unsigned long speedTimes[2]; //load the variable from RAM and not from a storage register
+volatile unsigned long cadenceTimes[2];
+unsigned long wheelRotationInterval;
+unsigned long lastTime;
+unsigned long lastTimeCadence;
 
+const unsigned int circ = 2073; //dystans w mm jaki pokonuje kolo w 1 obrocie zwiazane ze srednica kola. UWAGA zrobic funkcje przeliczajaca z cali w momencie uruchomienia programu
+const unsigned long distFact = 1000;
+const unsigned long hour = 3600000;
+unsigned long speedFactor = 0;
+volatile unsigned int speed = 0; //max value 65,535 (2^16) - 1)
+volatile unsigned int cadence = 0;
+
+//settings for the display refresh
+unsigned long screenRefreshInterval = 1000; //screen
+unsigned long screenRefreshLast = 0;
+int screenNo = 0;
+
+settings for the encoder
+byte pushButton = 44;
+byte dt = 42;
+byte clk = 40;
  
 void setup() {
   // Uruchom port szeregowy
