@@ -8,6 +8,7 @@
  */
  
 //Dolacz konieczne biblioteki
+#include <avr/pgmspace.h> // biblioteka pozwalajaca przechowywac zmienne w pamieci Flash
 #include <Wire.h> // Komunikacja przez protokół I2C / TWI
 #include <SPI.h> // Do komunikacji z urządzeniami przez interfejs SPI (Serial Peripheral Interface)
 #include <Adafruit_GFX.h>  // Biblioteka graficzna stworzona przez Adafruit
@@ -31,6 +32,8 @@
 #define TFT_DC     7 // Data command for tft
 
 #define SD_CS    8  // Chip select line for SD card
+
+#define BUFFPIXEL 20 // bufor pikseli dla 
 
 // Option 1 (recommended): must use the hardware SPI pins
 // (for UNO thats sclk = 13 and sid = 11) and pin 10 must be
@@ -59,7 +62,7 @@ volatile unsigned int cadence = 0;
 //settings for the display refresh
 const unsigned long screenRefreshInterval = 1000; // odswiezanie ekrany interwal w milisekundach
 unsigned long screenRefreshLast = 0;
-volatile int screenNo = 0;
+volatile int screenNo = 0; // domyslny numer ekranu
 
 // odswiezanie sensorow
 const unsigned long sensorsRefreshInterval = 1000; // w milisekundach
@@ -73,6 +76,7 @@ float altitude = 0.0;
 int analogVoltage = 0;
 float voltage = 0.0;
 float headingDegrees = 0.0;
+int analogCharging = 0;
 
 
 // ustawienie pinów enkodera
@@ -98,8 +102,139 @@ HMC5883L compass;
 DS3231 clock;
 RTCDateTime clock_dt;
 
+// bitmapy dla wyswietlacza
+const unsigned char btLogo [] PROGMEM = {
+  // 'bluetooth'
+  B00111000, 
+  B00111100, 
+  B00110110, 
+  B00110011, 
+  B10110001, 
+  B11110011, 
+  B00110110, 
+  B00111100, 
+  B00110110, 
+  B11110011, 
+  B10110001, 
+  B00110011, 
+  B00110110,
+  B00111100, 
+  B00111000  
+};
+
+const unsigned char bat0perc [] PROGMEM = {
+  B00001111, B11111111, B11111111, B11111111,
+  B00001111, B11111111, B11111111, B11111111,
+  B00001100, B00000000, B00000000, B00000011,
+  B00001100, B00000000, B00000000, B00000011,
+  B11111100, B00000000, B00000000, B00000011,
+  B11111100, B00000000, B00000000, B00000011,
+  B11000000, B00000000, B00000000, B00000011,
+  B11000000, B00000000, B00000000, B00000011,
+  B11000000, B00000000, B00000000, B00000011,
+  B11000000, B00000000, B00000000, B00000011,
+  B11111100, B00000000, B00000000, B00000011,
+  B11111100, B00000000, B00000000, B00000011,
+  B00001100, B00000000, B00000000, B00000011,
+  B00001100, B00000000, B00000000, B00000011,
+  B00001111, B11111111, B11111111, B11111111,
+  B00001111, B11111111, B11111111, B11111111
+};
+
+const unsigned char bat25perc [] PROGMEM = {
+  B00001111, B11111111, B11111111, B11111111,
+  B00001111, B11111111, B11111111, B11111111,
+  B00001100, B00000000, B00000000, B00000011,
+  B00001100, B00000000, B00000000, B00000011,
+  B11111100, B00000000, B00000001, B11110011,
+  B11111100, B00000000, B00000001, B11110011,
+  B11000000, B00000000, B00000001, B11110011,
+  B11000000, B00000000, B00000001, B11110011,
+  B11000000, B00000000, B00000001, B11110011,
+  B11000000, B00000000, B00000001, B11110011,
+  B11111100, B00000000, B00000001, B11110011,
+  B11111100, B00000000, B00000001, B11110011,
+  B00001100, B00000000, B00000000, B00000011,
+  B00001100, B00000000, B00000000, B00000011,
+  B00001111, B11111111, B11111111, B11111111,
+  B00001111, B11111111, B11111111, B11111111
+};
+
+const unsigned char bat50perc [] PROGMEM = {
+  B00001111, B11111111, B11111111, B11111111,
+  B00001111, B11111111, B11111111, B11111111,
+  B00001100, B00000000, B00000000, B00000011,
+  B00001100, B00000000, B00000000, B00000011,
+  B11111100, B00000000, B00111111, B11110011,
+  B11111100, B00000000, B00111111, B11110011,
+  B11000000, B00000000, B00111111, B11110011,
+  B11000000, B00000000, B00111111, B11110011,
+  B11000000, B00000000, B00111111, B11110011,
+  B11000000, B00000000, B00111111, B11110011,
+  B11111100, B00000000, B00111111, B11110011,
+  B11111100, B00000000, B00111111, B11110011,
+  B00001100, B00000000, B00000000, B00000011,
+  B00001100, B00000000, B00000000, B00000011,
+  B00001111, B11111111, B11111111, B11111111,
+  B00001111, B11111111, B11111111, B11111111
+};
+
+const unsigned char bat75perc [] PROGMEM = {
+  B00001111, B11111111, B11111111, B11111111,
+  B00001111, B11111111, B11111111, B11111111,
+  B00001100, B00000000, B00000000, B00000011,
+  B00001100, B00000000, B00000000, B00000011,
+  B11111100, B00000111, B11111111, B11110011,
+  B11111100, B00000111, B11111111, B11110011,
+  B11000000, B00000111, B11111111, B11110011,
+  B11000000, B00000111, B11111111, B11110011,
+  B11000000, B00000111, B11111111, B11110011,
+  B11000000, B00000111, B11111111, B11110011,
+  B11111100, B00000111, B11111111, B11110011,
+  B11111100, B00000111, B11111111, B11110011,
+  B00001100, B00000000, B00000000, B00000011,
+  B00001100, B00000000, B00000000, B00000011,
+  B00001111, B11111111, B11111111, B11111111,
+  B00001111, B11111111, B11111111, B11111111
+};
+
+const unsigned char bat100perc [] PROGMEM = {
+  B00001111, B11111111, B11111111, B11111111,
+  B00001111, B11111111, B11111111, B11111111,
+  B00001100, B00000000, B00000000, B00000011,
+  B00001100, B00000000, B00000000, B00000011,
+  B11111100, B11111111, B11111111, B11110011,
+  B11111100, B11111111, B11111111, B11110011,
+  B11000000, B11111111, B11111111, B11110011,
+  B11000000, B11111111, B11111111, B11110011,
+  B11000000, B11111111, B11111111, B11110011,
+  B11000000, B11111111, B11111111, B11110011,
+  B11111100, B11111111, B11111111, B11110011,
+  B11111100, B11111111, B11111111, B11110011,
+  B00001100, B00000000, B00000000, B00000011,
+  B00001100, B00000000, B00000000, B00000011,
+  B00001111, B11111111, B11111111, B11111111,
+  B00001111, B11111111, B11111111, B11111111
+};
+
+const unsigned char batCharging [] PROGMEM = {
+  B00000011, B00000000, B11100000, B00000000,
+  B00000011, B10000000, B11110000, B00000000,
+  B00000011, B11000000, B11111000, B00000000,
+  B00000011, B11100000, B11111100, B00000000,
+  B00000001, B11110000, B11111110, B00000000,
+  B00000000, B01111000, B11111111, B00000000,
+  B00000000, B00111111, B11000111, B10000000,
+  B00000000, B00011111, B11000011, B11000000,
+  B00000000, B00001111, B11000001, B11100000,
+  B00000000, B00000111, B11000000, B11110000,
+  B00000000, B00000011, B11000000, B01111000,
+  B00000000, B00000001, B11000000, B00011100
+};
  
 void setup() {  
+
+  
   // ustawienie pinow dla czujnikow halla/kontaktronow
   // predkosc
   pinMode(19, INPUT_PULLUP); // przerwanie int.4 na pinie 19 
@@ -110,13 +245,14 @@ void setup() {
   pinMode(2, INPUT_PULLUP); // ustaw rezystor podciagajacy na pinie 2, przerwanie na tym pinie to int.0
   attachInterrupt(0, onCadence, RISING); 
   
-  // Port serial 3 dla komunikacji z modulem bluetooth
+  // Port serial 2 dla komunikacji z modulem bluetooth
   Serial2.begin(9600);
   
   // ustaw pin stanu bluetooth
   pinMode(btStatePin, INPUT);
   pinMode(btOnOffPin, OUTPUT);
-  digitalWrite(btOnOffPin, HIGH);
+  //digitalWrite(btOnOffPin, HIGH);
+  digitalWrite(btOnOffPin, LOW);
   
   // Uruchom port szeregowy
   Serial.begin(9600);
@@ -141,7 +277,7 @@ void setup() {
   compass.setSamples(HMC5883L_SAMPLES_4);
 
   // Ustawiamy date i czas z kompilacji szkicu
-  clock.setDateTime(__DATE__,__TIME__); 
+  //clock.setDateTime(__DATE__,__TIME__); 
 
   // Inicjalizacja wyswietlacza
   // Use this initializer if you're using a 1.8" TFT
@@ -151,7 +287,19 @@ void setup() {
   Serial.println("TFT Initialized");
 
   tft.fillScreen(ST7735_BLACK); //ustaw tlo na czarne
-  showSplash(ST7735_WHITE);
+    // start karty SD
+  Serial.print("Initializing SD card...");
+  if (!SD.begin(SD_CS)) {
+    Serial.println("failed!");
+    return;
+  }
+  Serial.println("OK!");
+
+  // pokaz splash screen po wlaczeniu zasilania
+  bmpDraw("splash.bmp", 0, 0);
+  // wait 3 seconds
+  delay(3000);
+  //showSplash(ST7735_WHITE);
   
   // Uruchom czujnik cisnienia i temperatury 
   if (!bme.begin())
@@ -194,26 +342,27 @@ void loop() {
     atmPressure = bme.readPressure();
     altitude = bme.readAltitude(1008);
     analogVoltage = analogRead(A0);
+    analogCharging = analogRead(A1);
     voltage = analogVoltage * 0.004483; // kompensacja dla podlaczonej diody
     clock_dt = clock.getDateTime();
     headingDegrees = compassHeading(compass);
 
     // testowo wyslij dane 
-    Serial2.print(temp1);
-    Serial2.print(",");
-    Serial2.print(temp2);
-    Serial2.print(",");
-    Serial2.print(atmPressure/100);
-    Serial2.print(" hPa");
-    Serial2.print(",");
-    Serial2.print(voltage);
-    Serial2.print(" V");
-    Serial2.print(",");
-    Serial2.print(speed / 1000);
-    Serial2.print(" km/h");
-    Serial2.print(headingDegrees);
-    Serial2.print("deg");
-    Serial2.print(";");
+//    Serial2.print(temp1);
+//    Serial2.print(",");
+//    Serial2.print(temp2);
+//    Serial2.print(",");
+//    Serial2.print(atmPressure/100);
+//    Serial2.print(" hPa");
+//    Serial2.print(",");
+//    Serial2.print(voltage);
+//    Serial2.print(" V");
+//    Serial2.print(",");
+//    Serial2.print(speed / 1000);
+//    Serial2.print(" km/h");
+//    Serial2.print(headingDegrees);
+//    Serial2.print("deg");
+//    Serial2.print(";");
     
   }
   
@@ -254,6 +403,9 @@ void screenRefresh(int screen)
     case 1:
       showScreen_1();
       break;
+    default:
+      showScreen_0();
+      break;
       
   }
   
@@ -271,10 +423,45 @@ void showScreen_0()
 {
   showStatusBar();
   
-  tft.setCursor(0, 20);
-  tft.setTextColor(ST7735_YELLOW);
+  tft.setTextColor(ST7735_WHITE);
   tft.setTextWrap(true);
-  tft.print("test");
+  tft.setTextSize(4);
+
+  // formatuj wskaznik predkosci w zaleznosci od wartosci
+  if ((speed/1000) > 9)
+  {
+    tft.setCursor(3, 40);// dla predkosci km 10-99
+  }
+  else 
+  {
+    tft.setCursor(25, 40);// dla predkosci km 0-9
+  }
+  tft.print(speed/1000);
+  tft.setCursor(40, 40);
+  tft.print(".");
+  tft.setCursor(57,40);
+  int reminder = speed % 1000;
+  String rem = String(reminder, DEC);
+  if (rem.length() == 1)
+  {
+    rem = rem + "0";
+  }
+  else if (rem.length() > 2)
+  {
+    rem = rem.substring(0,2);
+  }
+  tft.print(rem);
+  tft.setCursor(100, 60);
+  tft.setTextSize(1);
+  tft.print("km/h");  
+
+  tft.setTextSize(4);
+  tft.setCursor(45,80);
+  tft.print(cadence);
+  tft.setTextSize(1);
+  tft.setCursor(20,100);  
+  tft.print("rpm");
+ 
 }
 
 void showScreen_1()
@@ -282,6 +469,7 @@ void showScreen_1()
   showStatusBar();
   tft.setCursor(0, 20);
   tft.setTextColor(ST7735_YELLOW);
+  tft.setTextSize(1);
   tft.setTextWrap(true);
   tft.println(screenNo);
   tft.print("temp1: ");
@@ -308,14 +496,61 @@ void showScreen_1()
   tft.println(speed);
   tft.print("Cadence: ");
   tft.println(cadence);  
+  tft.print("Charging");
+  tft.println(analogCharging);
+  tft.print("A2");
+  tft.println(analogRead(A2));
 }
 
 void showStatusBar()
 {
   tft.fillScreen(ST7735_BLACK);  
   tft.setCursor(0,0);
+  tft.setTextSize(2);
   tft.setTextColor(ST7735_WHITE);
-  tft.println(clock.dateFormat("H:i:s", clock_dt));
+  tft.println(clock.dateFormat("H:i", clock_dt));
+
+  // wyswietl logo bluetooth tylko jesli bluetooth jest on (nie oznacza to ze jest polaczenie!)
+  if (HIGH == digitalRead(btOnOffPin)) 
+  {
+    tft.drawBitmap(70, 0, btLogo, 8, 15, ST7735_BLUE);
+  }
+
+  // wyswietl symbole baterii w zaleznosci od 
+  if (voltage < 2.8)
+  {
+    tft.drawBitmap(96, 0,bat0perc, 32, 16, ST7735_RED);
+  }
+  else if (voltage < 3.1)
+  {
+    tft.drawBitmap(96, 0,bat25perc, 32, 16, ST7735_YELLOW);
+  }
+  else if (voltage < 3.4)
+  {
+    tft.drawBitmap(96, 0,bat50perc, 32, 16, ST7735_YELLOW);
+  }
+  else if (voltage < 3.6)
+  {
+      tft.drawBitmap(96, 0,bat75perc, 32, 16, ST7735_GREEN);
+  }
+  else 
+  {
+    tft.drawBitmap(96, 0,bat100perc, 32, 16, ST7735_GREEN);
+  }
+   //wyswietl symbol ladowania lub pelnego naladowania
+   // wskaznik pelnego naladowania na diodzie ladowarki
+  if (analogRead(A2) > 800)
+    {
+    tft.setCursor(102,4);
+    tft.setTextColor(ST7735_RED);
+    tft.setTextSize(1);
+    tft.print("100%");    
+  } 
+  else if (analogCharging > 200) 
+  {
+    tft.drawBitmap(96, 2,batCharging, 32, 12, ST7735_WHITE);
+  }
+ 
 }
 void showTemperature(uint16_t color)
 {
@@ -392,4 +627,135 @@ void onCadence()
   rotations++;  
 }
 
+// ladowanie obrazka. Kod pochodzi z przykladu spitftbitmap z biblioteki Adafruit_ST7735
+
+void bmpDraw(char *filename, uint8_t x, uint8_t y) {
+
+  File     bmpFile;
+  int      bmpWidth, bmpHeight;   // W+H in pixels
+  uint8_t  bmpDepth;              // Bit depth (currently must be 24)
+  uint32_t bmpImageoffset;        // Start of image data in file
+  uint32_t rowSize;               // Not always = bmpWidth; may have padding
+  uint8_t  sdbuffer[3*BUFFPIXEL]; // pixel buffer (R+G+B per pixel)
+  uint8_t  buffidx = sizeof(sdbuffer); // Current position in sdbuffer
+  boolean  goodBmp = false;       // Set to true on valid header parse
+  boolean  flip    = true;        // BMP is stored bottom-to-top
+  int      w, h, row, col;
+  uint8_t  r, g, b;
+  uint32_t pos = 0, startTime = millis();
+
+  if((x >= tft.width()) || (y >= tft.height())) return;
+
+  Serial.println();
+  Serial.print("Loading image '");
+  Serial.print(filename);
+  Serial.println('\'');
+
+  // Open requested file on SD card
+  if ((bmpFile = SD.open(filename)) == NULL) {
+    Serial.print("File not found");
+    return;
+  }
+
+  // Parse BMP header
+  if(read16(bmpFile) == 0x4D42) { // BMP signature
+    Serial.print("File size: "); Serial.println(read32(bmpFile));
+    (void)read32(bmpFile); // Read & ignore creator bytes
+    bmpImageoffset = read32(bmpFile); // Start of image data
+    Serial.print("Image Offset: "); Serial.println(bmpImageoffset, DEC);
+    // Read DIB header
+    Serial.print("Header size: "); Serial.println(read32(bmpFile));
+    bmpWidth  = read32(bmpFile);
+    bmpHeight = read32(bmpFile);
+    if(read16(bmpFile) == 1) { // # planes -- must be '1'
+      bmpDepth = read16(bmpFile); // bits per pixel
+      Serial.print("Bit Depth: "); Serial.println(bmpDepth);
+      if((bmpDepth == 24) && (read32(bmpFile) == 0)) { // 0 = uncompressed
+
+        goodBmp = true; // Supported BMP format -- proceed!
+        Serial.print("Image size: ");
+        Serial.print(bmpWidth);
+        Serial.print('x');
+        Serial.println(bmpHeight);
+
+        // BMP rows are padded (if needed) to 4-byte boundary
+        rowSize = (bmpWidth * 3 + 3) & ~3;
+
+        // If bmpHeight is negative, image is in top-down order.
+        // This is not canon but has been observed in the wild.
+        if(bmpHeight < 0) {
+          bmpHeight = -bmpHeight;
+          flip      = false;
+        }
+
+        // Crop area to be loaded
+        w = bmpWidth;
+        h = bmpHeight;
+        if((x+w-1) >= tft.width())  w = tft.width()  - x;
+        if((y+h-1) >= tft.height()) h = tft.height() - y;
+
+        // Set TFT address window to clipped image bounds
+        tft.setAddrWindow(x, y, x+w-1, y+h-1);
+
+        for (row=0; row<h; row++) { // For each scanline...
+
+          // Seek to start of scan line.  It might seem labor-
+          // intensive to be doing this on every line, but this
+          // method covers a lot of gritty details like cropping
+          // and scanline padding.  Also, the seek only takes
+          // place if the file position actually needs to change
+          // (avoids a lot of cluster math in SD library).
+          if(flip) // Bitmap is stored bottom-to-top order (normal BMP)
+            pos = bmpImageoffset + (bmpHeight - 1 - row) * rowSize;
+          else     // Bitmap is stored top-to-bottom
+            pos = bmpImageoffset + row * rowSize;
+          if(bmpFile.position() != pos) { // Need seek?
+            bmpFile.seek(pos);
+            buffidx = sizeof(sdbuffer); // Force buffer reload
+          }
+
+          for (col=0; col<w; col++) { // For each pixel...
+            // Time to read more pixel data?
+            if (buffidx >= sizeof(sdbuffer)) { // Indeed
+              bmpFile.read(sdbuffer, sizeof(sdbuffer));
+              buffidx = 0; // Set index to beginning
+            }
+
+            // Convert pixel from BMP to TFT format, push to display
+            b = sdbuffer[buffidx++];
+            g = sdbuffer[buffidx++];
+            r = sdbuffer[buffidx++];
+            tft.pushColor(tft.Color565(r,g,b));
+          } // end pixel
+        } // end scanline
+        Serial.print("Loaded in ");
+        Serial.print(millis() - startTime);
+        Serial.println(" ms");
+      } // end goodBmp
+    }
+  }
+
+  bmpFile.close();
+  if(!goodBmp) Serial.println("BMP format not recognized.");
+}
+
+// These read 16- and 32-bit types from the SD card file.
+// BMP data is stored little-endian, Arduino is little-endian too.
+// May need to reverse subscript order if porting elsewhere.
+
+uint16_t read16(File f) {
+  uint16_t result;
+  ((uint8_t *)&result)[0] = f.read(); // LSB
+  ((uint8_t *)&result)[1] = f.read(); // MSB
+  return result;
+}
+
+uint32_t read32(File f) {
+  uint32_t result;
+  ((uint8_t *)&result)[0] = f.read(); // LSB
+  ((uint8_t *)&result)[1] = f.read();
+  ((uint8_t *)&result)[2] = f.read();
+  ((uint8_t *)&result)[3] = f.read(); // MSB
+  return result;
+}
 
