@@ -59,10 +59,11 @@ unsigned long speedFactor = 0; // ?
 volatile unsigned int speed = 0; //max value 65,535 (2^16) - 1)
 volatile unsigned int cadence = 0;
 
-//settings for the display refresh
+// parametry odswiezania ekranu
 const unsigned long screenRefreshInterval = 1000; // odswiezanie ekrany interwal w milisekundach
 unsigned long screenRefreshLast = 0;
 volatile int screenNo = 0; // domyslny numer ekranu
+int screenNoLast = 0;
 
 // odswiezanie sensorow
 const unsigned long sensorsRefreshInterval = 1000; // w milisekundach
@@ -87,6 +88,7 @@ const byte clk = 26;
 // ustawienie pinów dla bluetooth xm15
 const byte btOnOffPin = 37;
 const byte btStatePin = 35;
+byte btOnOffLast;
 
 // Inicjalizuj Enkoder
 Encoder en1(dt, clk, pushButton, 5);
@@ -101,6 +103,7 @@ HMC5883L compass;
 // Zegar i czas
 DS3231 clock;
 RTCDateTime clock_dt;
+String timeLast;
 
 // bitmapy dla wyswietlacza
 const unsigned char btLogo [] PROGMEM = {
@@ -231,10 +234,32 @@ const unsigned char batCharging [] PROGMEM = {
   B00000000, B00000011, B11000000, B01111000,
   B00000000, B00000001, B11000000, B00011100
 };
- 
-void setup() {  
 
-  
+const unsigned char bmHeart [] PROGMEM = {
+  B00001111, B11000000, B11111100, B00000000, //1
+  B00011111, B11100001, B11111110, B00000000, //2
+  B00111111, B11110011, B11111111, B00000000, //3
+  B01111111, B11110011, B11111111, B10000000, //4
+  B11111111, B11111111, B11111111, B11000000, //5
+  B11111111, B11111111, B11111111, B11000000, //6
+  B11111111, B11111111, B11111111, B11000000, //7
+  B11111111, B11111111, B11111111, B11000000, //8
+  B11111111, B11111111, B11111111, B11000000, //9
+  B11111111, B11111111, B11111111, B11000000, //10
+  B01111111, B11111111, B11111111, B10000000, //11
+  B00111111, B11111111, B11111111, B00000000, //12
+  B00011111, B11111111, B11111110, B00000000, //13
+  B00001111, B11111111, B11111100, B00000000, //14
+  B00000111, B11111111, B11111000, B00000000, //15
+  B00000011, B11111111, B11110000, B00000000, //16
+  B00000001, B11111111, B11100000, B00000000, //17
+  B00000000, B11111111, B11000000, B00000000, //18
+  B00000000, B01111111, B10000000, B00000000, //19
+  B00000000, B00111111, B00000000, B00000000, //20
+  B00000000, B00011110, B00000000, B00000000,  //21
+  B00000000, B00001100, B00000000, B00000000  //22
+};
+void setup() {    
   // ustawienie pinow dla czujnikow halla/kontaktronow
   // predkosc
   pinMode(19, INPUT_PULLUP); // przerwanie int.4 na pinie 19 
@@ -251,8 +276,9 @@ void setup() {
   // ustaw pin stanu bluetooth
   pinMode(btStatePin, INPUT);
   pinMode(btOnOffPin, OUTPUT);
-  //digitalWrite(btOnOffPin, HIGH);
-  digitalWrite(btOnOffPin, LOW);
+  digitalWrite(btOnOffPin, HIGH);
+  //digitalWrite(btOnOffPin, LOW);
+  btOnOffLast = LOW;
   
   // Uruchom port szeregowy
   Serial.begin(9600);
@@ -299,7 +325,7 @@ void setup() {
   bmpDraw("splash.bmp", 0, 0);
   // wait 3 seconds
   delay(3000);
-  //showSplash(ST7735_WHITE);
+  tft.fillScreen(ST7735_BLACK); 
   
   // Uruchom czujnik cisnienia i temperatury 
   if (!bme.begin())
@@ -333,19 +359,28 @@ void loop() {
     cadence = 0;
   }
 
-  // odswiez dane z czujnikow
+  // odswiez dane z czujnikow i przycisku
   unsigned long sensorsCurrentMillis = millis();
   if((unsigned long)(sensorsCurrentMillis - sensorsRefreshLast) >= sensorsRefreshInterval)
   {
+    sensorsRefreshLast = sensorsCurrentMillis;
     temp1 = bme.readTemperature();
     temp2 = clock.readTemperature();
     atmPressure = bme.readPressure();
     altitude = bme.readAltitude(1008);
     analogVoltage = analogRead(A0);
     analogCharging = analogRead(A1);
+    
     voltage = analogVoltage * 0.004483; // kompensacja dla podlaczonej diody
     clock_dt = clock.getDateTime();
     headingDegrees = compassHeading(compass);
+
+    if ((digitalRead(pushButton) == LOW) && screenNo == 2)
+    {
+      Serial.println("BluetoothSwitch");
+      switchBluetooth();
+    }
+    
 
     // testowo wyslij dane 
 //    Serial2.print(temp1);
@@ -403,21 +438,23 @@ void screenRefresh(int screen)
     case 1:
       showScreen_1();
       break;
+    case 2:
+      showBTscreen();
+      break;  
     default:
       showScreen_0();
-      break;
-      
-  }
-  
+      break;      
+  }  
+  screenNoLast = screenNo;
 }
 
-void showSplash(uint16_t color)
-{
-    tft.setCursor(0, 0);
-    tft.setTextColor(color);
-    tft.setTextWrap(true);
-    tft.print("Starting Cycluino");
-}
+//void showSplash(uint16_t color)
+//{
+//    tft.setCursor(0, 0);
+//    tft.setTextColor(color);
+//    tft.setTextWrap(true);
+//    tft.print("Starting Cycluino");
+//}
 
 void showScreen_0()
 {
@@ -461,9 +498,29 @@ void showScreen_0()
   tft.setTextSize(1);
   tft.setCursor(20,100);  
   tft.print("rpm");
- 
+  tft.drawBitmap(0, 138,bmHeart, 32, 22, ST7735_RED);
 }
 
+void showBTscreen()
+{
+  showStatusBar();
+
+  tft.setTextColor(ST7735_WHITE);
+  tft.setTextWrap(true);
+  tft.setTextSize(2);
+  tft.setCursor(10,60);
+  tft.println("Bluetooth");
+  tft.fillRect(40, 80, 35, 14, ST7735_BLUE);
+  tft.setCursor(40,80);
+  if (HIGH == digitalRead(btOnOffPin))
+  {
+   tft.print("ON"); 
+  }
+  else
+  {
+    tft.print("OFF");
+  }
+}
 void showScreen_1()
 {
   showStatusBar();
@@ -503,19 +560,31 @@ void showScreen_1()
 }
 
 void showStatusBar()
-{
-  tft.fillScreen(ST7735_BLACK);  
-  tft.setCursor(0,0);
-  tft.setTextSize(2);
-  tft.setTextColor(ST7735_WHITE);
-  tft.println(clock.dateFormat("H:i", clock_dt));
-
-  // wyswietl logo bluetooth tylko jesli bluetooth jest on (nie oznacza to ze jest polaczenie!)
-  if (HIGH == digitalRead(btOnOffPin)) 
+{ 
+  // rysuj czas tylko jesli inny niz ostatnio
+  if (timeLast != clock.dateFormat("H:i", clock_dt))
   {
-    tft.drawBitmap(70, 0, btLogo, 8, 15, ST7735_BLUE);
+    tft.fillRect(0, 0, 60, 15, ST7735_RED);
+    timeLast =  clock.dateFormat("H:i", clock_dt);
+    tft.setCursor(0,0);
+    tft.setTextSize(2);
+    tft.setTextColor(ST7735_WHITE);
+    tft.println(timeLast);
   }
 
+  // rysuj symbol bluetooth tylko jesli status zmienil sie
+  if (btOnOffLast != digitalRead(btOnOffPin))
+  {
+    tft.fillRect(70, 0, 9, 15, ST7735_WHITE);
+    // wyswietl logo bluetooth tylko jesli bluetooth jest on (nie oznacza to ze jest polaczenie!)
+    if (HIGH == digitalRead(btOnOffPin)) 
+    {
+      tft.drawBitmap(70, 0, btLogo, 8, 15, ST7735_BLUE);
+    }
+    btOnOffLast = digitalRead(btOnOffPin);
+  }  
+
+  tft.fillRect(96, 0, 128, 16, ST7735_BLACK);
   // wyswietl symbole baterii w zaleznosci od 
   if (voltage < 2.8)
   {
@@ -550,11 +619,16 @@ void showStatusBar()
   {
     tft.drawBitmap(96, 2,batCharging, 32, 12, ST7735_WHITE);
   }
- 
+
+  //kasuj reszte ekranu tylko jesli zmiana ekranu
+  if (screenNo != screenNoLast)
+  {
+    tft.fillRect(0, 17, 128, 160, ST7735_BLACK);
+  }
 }
+
 void showTemperature(uint16_t color)
-{
-  tft.fillScreen(ST7735_BLACK);
+{  
   tft.setCursor(0,0);
   tft.setTextColor(color);
   tft.setTextWrap(true);
@@ -563,8 +637,7 @@ void showTemperature(uint16_t color)
 }
 
 void showPressure(uint16_t color)
-{
-  tft.fillScreen(ST7735_BLACK);
+{  
   tft.setCursor(0,10);
   tft.setTextColor(color);
   tft.setTextWrap(true);
@@ -572,7 +645,7 @@ void showPressure(uint16_t color)
   tft.print(bme.readPressure() / 100); // 100 Pa = 1 millibar
 }   
 
-float compassHeading(HMC5883L compass)
+float compassHeading(HMC5883L compass) // kod pochodzi z przykladu ze strony http://www.jarzebski.pl/
 {
   // Pobranie wektorow znormalizowanych
   Vector norm = compass.readNormalize();
@@ -580,7 +653,7 @@ float compassHeading(HMC5883L compass)
   // Obliczenie kierunku (rad)
   float heading = atan2(norm.YAxis, norm.XAxis);
 
-  // Ustawienie kate deklinacji dla Sosnowca 5'1E (positive)
+  // Ustawienie kata deklinacji dla Sosnowca 5'1E (positive)
   // Formula: (deg + (min / 60.0)) / (180 / M_PI);
   //float declinationAngle = (5.0 + (1.0 / 60.0)) / (180 /M_PI);
   float declinationAngle = 0.08756;
@@ -757,5 +830,21 @@ uint32_t read32(File f) {
   ((uint8_t *)&result)[2] = f.read();
   ((uint8_t *)&result)[3] = f.read(); // MSB
   return result;
+}
+
+void switchBluetooth()
+{      
+      if (digitalRead(btOnOffPin) == HIGH)     
+      {
+        Serial.println("DigitalWriteLow");
+        digitalWrite(btOnOffPin, LOW);
+        screenRefresh(2);
+      }
+      else 
+      {
+        Serial.println("DigitalWriteHigh");
+        digitalWrite(btOnOffPin, HIGH);
+        screenRefresh(2);
+      }
 }
 
