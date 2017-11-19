@@ -24,32 +24,34 @@
 #include "Encoder.h" // Wlasna biblioteka dla enkodera
 
 // Początek ustawień wyświetlacza
-// slowo kluczowe define w C pozwala na nadanie stalej wartosci przed wlasciwa kompilacja
 #define TFT_CS     53 // linia Chip Select dla wyświetlacza (wybór aktywnego urządzenia Slave SPI)
 #define TFT_RST    6  // Wymuszenie resetu wyświetlacza
 #define TFT_DC     7 // Linia Data Command
 #define SD_CS    8  // Linia Chip Select dla czytnika kart SD
 
-#define BUFFPIXEL 20 // bufor pikseli dla procedury ladujacej obrazek powitalny
+#define BUFFPIXEL 20 // bufor pikseli dla ?
 
-// Inicjowanie ekranu TFT podlaczonego do sprzetowych pinow SPI (tworzenie obiektu)
+// Option 1 (recommended): must use the hardware SPI pins
+// (for UNO thats sclk = 13 and sid = 11) and pin 10 must be
+// an output. This is much faster - also required if you want
+// to use the microSD card (see the image drawing example)
+
 Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS,  TFT_DC, TFT_RST);
 
 //ustawienia cycluino
-// volatile wymusza operowanie na zmiennej w pamieci RAM, a nie w rejestrze
-volatile word steps; // ilosc obrotow kola od momentu resetu urzadzenia
-volatile word rotations; // ilosc obrotow korbowodu od momentu resetu urzadzenia
-volatile unsigned long speedTimes[2]; // tablica do przechowywania ostatnich dwoch czasow wystapienia przejscia magnesu na kole
-volatile unsigned long cadenceTimes[2]; // tablica do przechowywania ostatnich dwoch czasow wystapienia przejscia magnesu na korbowodzie
-unsigned long wheelRotationInterval; // czas jaki uplynal pomiedzy dwoma ostatnimi obrotami kola
-unsigned long lastTimeSpeed; // prędkość wyliczona w poprzednim wywołaniu funkcji
-unsigned long lastTimeCadence; // obroty/min wyliczone w poprzednim wywołaniu funkcji
+volatile word steps;//load the variable from RAM and not from a storage register
+volatile word rotations; // number of times the pedal shaft rotates
+volatile unsigned long speedTimes[2]; // tablica do przechowywania ostatnich dwoch czasow wystapienia przerwania
+volatile unsigned long cadenceTimes[2];
+unsigned long wheelRotationInterval;
+unsigned long lastTimeSpeed; //
+unsigned long lastTimeCadence;
 
 const unsigned int circ = 2073; //dystans w mm jaki pokonuje kolo w 1 obrocie zwiazane ze srednica kola. UWAGA zrobic funkcje przeliczajaca z cali w momencie uruchomienia programu
 const unsigned long distFact = 1000;
 const unsigned long hourMs = 3600000; // ilosc milisekund w godzinie
 unsigned long speedFactor = 0; // ?
-volatile unsigned int speed = 0; // 
+volatile unsigned int speed = 0; //max value 65,535 (2^16) - 1)
 volatile unsigned int cadence = 0;
 
 unsigned int speed_last = 1;
@@ -57,9 +59,9 @@ unsigned int cadence_last = 1;
 
 // parametry odswiezania ekranu
 const unsigned long screenRefreshInterval = 1000; // odswiezanie ekrany interwal w milisekundach
-unsigned long screenRefreshLast = 0; // moment ostatniego odświeżenia ekranu
-volatile int screenNo = 0; // domyslny numer ekranu do wyswietlenia
-int screenNoLast = 0; // poprzedni wyswietlany numer ekranu
+unsigned long screenRefreshLast = 0;
+volatile int screenNo = 0; // domyslny numer ekranu
+int screenNoLast = 0;
 
 // odswiezanie sensorow
 const unsigned long sensorsRefreshInterval = 1000; // w milisekundach
@@ -175,7 +177,7 @@ void setup() {
   // Uruchom czujnik cisnienia i temperatury 
   if (!bme.begin())
   {  
-    Serial.println("Could not find a valid BMP280 sensor, check wiring!");
+    Serial.println("Nie mozna znalezc sensora bmp280, sprawdz polaczenia!");
     while (1);
   }
 }
@@ -194,7 +196,7 @@ void loop() {
     speed = 0;
   } 
 
-  //calculation of cadence
+  //obliczenia kadencji
   if (millis() - cadenceTimes[0] < 3500) // ostatnie przejscie przez czujnik nie pozniej niz 3.5 sekundy wczesniej
   {
     cadence = 60000 / (cadenceTimes[0] - cadenceTimes[1]);
@@ -255,7 +257,7 @@ void loop() {
     screenRefresh(screenNo);
   }
   
-  delay(1);//for stability
+  delay(1);// male opoznienie dla poprawy stabilnosci systemu
 }
 
 
