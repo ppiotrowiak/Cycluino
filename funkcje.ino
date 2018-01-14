@@ -17,8 +17,17 @@ void screenRefresh(int screen)
       showScreen_1();
       break;
     case 2:
-      showBTscreen();
+      showScreen_2();
+      break;
+    case 3:
+      showScreen_3();
       break;  
+    case 4:
+      showScreen_4();      
+      break;       
+    case 5:      
+      showBTscreen();
+      break;
     default:
       showScreen_0();
       break;      
@@ -31,9 +40,7 @@ void showScreen_0()
 {
   showStatusBar();
  
- if (speed != speed_last)
- {
-  tft.fillRect(3,40, 97, 28, ST7735_BLUE);
+  tft.fillRect(3,40, 97, 28, ST7735_BLACK);
   tft.setTextColor(ST7735_WHITE);
   tft.setTextWrap(true);
   tft.setTextSize(4);
@@ -65,18 +72,16 @@ void showScreen_0()
   tft.setCursor(103, 60);
   tft.setTextSize(1);
   tft.print("km/h");  
-
-  // odswiezaj kadencje tylko jesli sie zmienila
-  tft.fillRect(44, 80, 60, 28, ST7735_BLUE);
+  
+  tft.fillRect(44, 80, 60, 28, ST7735_BLACK);
   tft.setTextSize(4);
   tft.setCursor(45,80);
   tft.print(cadence);
   tft.setTextSize(1);
   tft.setCursor(20,100);  
   tft.print("rpm");
-  tft.drawBitmap(0, 138,bmHeart, 32, 22, ST7735_RED);
+  tft.drawBitmap(0, 138,bmHeart, 32, 22, ST7735_BLACK);
   speed_last = speed;
- } 
 }
 
 void showBTscreen()
@@ -115,6 +120,8 @@ void showScreen_1()
   tft.println(atmPressure);
   tft.print("altitude: ");
   tft.println(altitude);
+  tft.print("humidity: ");
+  tft.println(humidity);
   tft.print("Voltage :");
   tft.println(analogVoltage);
   tft.print("voltage: ");
@@ -137,6 +144,51 @@ void showScreen_1()
   tft.println(analogRead(A2));
 }
 
+void showScreen_2() // temperatury
+{
+  showStatusBar();
+  tft.fillRect(0,20, 159, 127, ST7735_BLACK);
+  tft.setTextColor(ST7735_YELLOW);
+  tft.setTextSize(3);
+  tft.setCursor(0,20);
+  tft.println("Temp1:");
+  tft.setTextColor(ST7735_WHITE);
+  tft.println(temp1);
+  tft.setTextColor(ST7735_YELLOW);
+  tft.println("Temp2:");
+  tft.setTextColor(ST7735_WHITE);
+  tft.println(temp2);
+}
+
+void showScreen_3() // cisnienie i wysokosc
+{
+  showStatusBar();
+
+  tft.fillRect(0,20,159,127,ST7735_BLACK);
+  tft.setTextSize(2);
+  tft.setCursor(0,20);
+  tft.setTextColor(ST7735_YELLOW);
+  tft.println("Pressure:");
+  tft.setTextColor(ST7735_WHITE);
+  tft.println(atmPressure);
+  tft.setTextColor(ST7735_YELLOW);
+  tft.println("Altitude:");
+  tft.setTextColor(ST7735_WHITE);
+  tft.println(altitude);
+}
+
+void showScreen_4() // 
+{
+  showStatusBar();
+
+  tft.fillRect(0,20,159,127,ST7735_BLACK);
+  tft.setCursor(0,20);
+  tft.setTextSize(2);
+  tft.setTextColor(ST7735_YELLOW);
+  tft.println("Heading");
+  tft.setTextColor(ST7735_WHITE);
+  tft.println(headingDegrees);
+}
 void showStatusBar()
 { 
   // rysuj czas tylko jesli inny niz ostatnio
