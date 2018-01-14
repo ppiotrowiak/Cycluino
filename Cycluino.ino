@@ -74,7 +74,7 @@ float altitude = 0.0; // wysokosc npm
 float humidity = 0.0; // wilgotnosc %
 int analogVoltage = 0; // napiecie na baterii
 float voltage = 0.0;
-float headingDegrees = 0.0; // odchylenie od polnocy
+float headingDegrees = 0.0; // odchylenie osi kompasu od polnocy w katach
 int analogCharging = 0; // napiecie ladowania
 
 
