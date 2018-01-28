@@ -68,14 +68,12 @@
 	}
 
 	void Encoder::encoder_rotation(byte prev, byte current)
-	{
-		//if ((prev==3 && current==1) || (prev==0 && current==2))//clockwise
+	{		
 		if (prev == 3 && current == 1)
 		{
 			currentPosition++;
 			rotated = true;			
-		}
-		//else if ((prev==2 && current==0) || (prev==1 && current==3))
+		}		
 		else if (prev == 3 && current == 2)
 		{
 			currentPosition--;

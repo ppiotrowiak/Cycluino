@@ -467,12 +467,12 @@ void switchBluetooth()
       {
         Serial.println("DigitalWriteLow");
         digitalWrite(btOnOffPin, LOW);
-        screenRefresh(2);
+        screenRefresh(5);
       }
       else 
       {
         Serial.println("DigitalWriteHigh");
         digitalWrite(btOnOffPin, HIGH);
-        screenRefresh(2);
+        screenRefresh(5);
       }
 }

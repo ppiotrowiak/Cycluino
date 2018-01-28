@@ -95,7 +95,7 @@ const byte PulseSensorPin = A6;
 String btMessage;
 
 // Inicjalizuj Enkoder
-Encoder en1(dt, clk, pushButton, 5);
+Encoder en1(dt, clk, pushButton, 6);
 
 // Definiuj czujnik cisnienia i temperatury
 Adafruit_BMP280 bme;
@@ -188,8 +188,6 @@ void setup() {
   // wstrzymaj program na 3 sekundy
   delay(3000);
   tft.fillScreen(ST7735_BLACK); 
-  
-
 }
 
 void loop() {
@@ -223,8 +221,9 @@ void loop() {
     sensorsRefreshLast = sensorsCurrentMillis;
     temp1 = bme.readTemperature();
     temp2 = clock.readTemperature();
+    temp3 = dht.getTemperature();
     atmPressure = bme.readPressure();
-    altitude = bme.readAltitude(1008); // przypomniec sobie co to za wartosc
+    altitude = bme.readAltitude(1008); 
     humidity = dht.getHumidity();
     analogVoltage = analogRead(A0);
     analogCharging = analogRead(A1);
@@ -242,10 +241,9 @@ void loop() {
     
     if (HIGH == digitalRead(btOnOffPin))
     {
-    btMessage = String(temp1) + "," + String(temp2) + "," + String(atmPressure/100) + "," + String(voltage) + "," + String(speed/1000) + 
-        "," + String(headingDegrees) + ";";
-      Serial2.print(btMessage);
-      // testowo wyslij dane 
+    btMessage = String(temp1) + " C," + String(temp2) + " C," + String(atmPressure/100) + " hPa," + String(cadence) + " o/min," 
+    + String(speed/1000) + " km/h," + String(headingDegrees) + " head;";
+      Serial2.print(btMessage); // bluetooth podlaczony do Serial2 
     }
   }
   
