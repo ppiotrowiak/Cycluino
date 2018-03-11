@@ -1,12 +1,15 @@
 void screenRefresh(int screen)
 {  
-    if (screen < 0) 
-    {
-      screen = screen*(-1);
-    }
+  if (screen < 0) 
+  {
+    screen = screen*(-1);
+  }
 
-  Serial.print("Display refresh: ");
-  Serial.println(screen);  
+  if (ReportToSerial) 
+  {
+    Serial.print("Display refresh: ");    
+    Serial.println(screen);  
+  }
   
   switch (screen)
   {
@@ -23,10 +26,10 @@ void screenRefresh(int screen)
       showScreen_3();
       break;  
     case 4:
-      showScreen_4();      
+      showBTscreen();      
       break;       
-    case 5:      
-      showBTscreen();
+    case 5:          
+      showScreen_4();
       break;
     default:
       showScreen_0();
@@ -35,13 +38,11 @@ void screenRefresh(int screen)
   screenNoLast = screenNo;
 }
 
-
-void showScreen_0()
+void showScreen_0() // predkosc i obroty
 {
   showStatusBar();
- 
-  tft.fillRect(3,40, 97, 28, ST7735_BLACK);
-  tft.setTextColor(ST7735_WHITE);
+   
+  tft.setTextColor(ST7735_WHITE, ST7735_BLACK);
   tft.setTextWrap(true);
   tft.setTextSize(4);
 
@@ -51,15 +52,14 @@ void showScreen_0()
     tft.setCursor(3, 40);// dla predkosci km 10-99
   }
   else 
-  {
-    tft.setCursor(25, 40);// dla predkosci km 0-9
+  {   
+    tft.setCursor(3, 40);// dla predkosci km 0-9
+    tft.print(" ");
   }
-  tft.print(speed/1000);
-  tft.setCursor(40, 40);
-  tft.print(".");
-  tft.setCursor(57,40);
-  int reminder = speed % 1000;
-  String rem = String(reminder, DEC);
+  
+  tft.print(speed/1000);  
+  tft.print("."); 
+  String rem = String((speed % 1000), DEC);
   if (rem.length() == 1)
   {
     rem = rem + "0";
@@ -69,18 +69,24 @@ void showScreen_0()
     rem = rem.substring(0,2);
   }
   tft.print(rem);
-  tft.setCursor(103, 60);
+  tft.setCursor(103, 30);
   tft.setTextSize(1);
-  tft.print("km/h");  
+  tft.print("km/h"); 
   
-  tft.fillRect(44, 80, 60, 28, ST7735_BLACK);
   tft.setTextSize(4);
-  tft.setCursor(45,80);
+  if (cadence.length() <= 3)
+  {
+    cadence = "  " + cadence;
+  }
+  else if (cadence.length() <= 4)
+  {
+    cadence = " " + cadence;
+  }
+  tft.setCursor(0,80);
   tft.print(cadence);
   tft.setTextSize(1);
-  tft.setCursor(20,100);  
+  tft.setCursor(103,70);  
   tft.print("rpm");
-  tft.drawBitmap(0, 138,bmHeart, 32, 22, ST7735_BLACK);
   speed_last = speed;
 }
 
@@ -88,12 +94,11 @@ void showBTscreen()
 {
   showStatusBar();
 
-  tft.setTextColor(ST7735_WHITE);
+  tft.setTextColor(ST7735_WHITE, ST7735_BLACK);
   tft.setTextWrap(true);
   tft.setTextSize(2);
   tft.setCursor(10,60);
   tft.println("Bluetooth");
-  tft.fillRect(40, 80, 35, 14, ST7735_BLUE);
   tft.setCursor(40,80);
   if (HIGH == digitalRead(btOnOffPin))
   {
@@ -104,11 +109,11 @@ void showBTscreen()
     tft.print("OFF");
   }
 }
-void showScreen_1()
+void showScreen_4() // serwisowy
 {
   showStatusBar();
   tft.setCursor(0, 20);
-  tft.setTextColor(ST7735_YELLOW);
+  tft.setTextColor(ST7735_YELLOW, ST7735_BLACK);
   tft.setTextSize(1);
   tft.setTextWrap(true);
   tft.println(screenNo);
@@ -144,49 +149,63 @@ void showScreen_1()
   tft.println(analogRead(A2));
 }
 
-void showScreen_2() // temperatury
+void showScreen_1() // temperatury
 {
-  showStatusBar();
-  tft.fillRect(0,20, 159, 127, ST7735_BLACK);
-  tft.setTextColor(ST7735_YELLOW);
+  showStatusBar();  
+  tft.setTextColor(ST7735_YELLOW, ST7735_BLACK);
   tft.setTextSize(3);
   tft.setCursor(0,20);
   tft.println("Temp1:");
-  tft.setTextColor(ST7735_WHITE);
-  tft.println(temp1);
-  tft.setTextColor(ST7735_YELLOW);
+  tft.setTextColor(ST7735_WHITE, ST7735_BLACK);
+  tft.print(temp1);
+  tft.print((char)247);
+  tft.println("C");
+  tft.setTextColor(ST7735_YELLOW, ST7735_BLACK);
   tft.println("Temp2:");
-  tft.setTextColor(ST7735_WHITE);
-  tft.println(temp2);
+  tft.setTextColor(ST7735_WHITE, ST7735_BLACK);  
+  tft.print(temp2);
+  tft.print((char)247);
+  tft.println("C");
+  tft.setTextColor(ST7735_YELLOW, ST7735_BLACK);
+  tft.println("Temp3:");
+  tft.setTextColor(ST7735_WHITE, ST7735_BLACK);
+  tft.print(temp3);
+  tft.print((char)247);
+  tft.println("C");
 }
 
 void showScreen_3() // cisnienie i wysokosc
 {
   showStatusBar();
 
-  tft.fillRect(0,20,159,127,ST7735_BLACK);
   tft.setTextSize(2);
   tft.setCursor(0,20);
-  tft.setTextColor(ST7735_YELLOW);
+  tft.setTextColor(ST7735_YELLOW,ST7735_BLACK);
   tft.println("Pressure:");
-  tft.setTextColor(ST7735_WHITE);
-  tft.println(atmPressure);
-  tft.setTextColor(ST7735_YELLOW);
+  tft.setTextColor(ST7735_WHITE,ST7735_BLACK);
+  tft.print(atmPressure/100);
+  tft.println("hPa");
+  tft.setTextColor(ST7735_YELLOW,ST7735_BLACK);
   tft.println("Altitude:");
-  tft.setTextColor(ST7735_WHITE);
-  tft.println(altitude);
+  tft.setTextColor(ST7735_WHITE,ST7735_BLACK);
+  tft.print(altitude);
+  tft.println("m");
+  tft.setTextColor(ST7735_YELLOW,ST7735_BLACK);
+  tft.println("Humidity");
+  tft.setTextColor(ST7735_WHITE,ST7735_BLACK);
+  tft.print(humidity);
+  tft.print("%");
 }
 
-void showScreen_4() // 
+void showScreen_2() // 
 {
   showStatusBar();
 
-  tft.fillRect(0,20,159,127,ST7735_BLACK);
   tft.setCursor(0,20);
   tft.setTextSize(2);
-  tft.setTextColor(ST7735_YELLOW);
+  tft.setTextColor(ST7735_YELLOW, ST7735_BLACK);
   tft.println("Heading");
-  tft.setTextColor(ST7735_WHITE);
+  tft.setTextColor(ST7735_WHITE, ST7735_BLACK);
   tft.println(headingDegrees);
 }
 void showStatusBar()
@@ -272,7 +291,7 @@ void showPressure(uint16_t color)
   tft.setTextColor(color);
   tft.setTextWrap(true);
   tft.println("Cisnienie (bmp): ");
-  tft.print(bme.readPressure() / 100); // 100 Pa = 1 millibar
+  tft.print(bme.readPressure() / 10000); // 100 hPa = 1 millibar
 }   
 
 float compassHeading(HMC5883L compass) // kod pochodzi z przykladu ze strony http://www.jarzebski.pl/
@@ -315,13 +334,18 @@ void onSpeed()
     speedTimes[1] = speedTimes[0];
     speedTimes[0] = timeNow;   
     
-    steps++;      
+    steps++;  
+    if (ReportToSerial) 
+    {
+      Serial.print("speed: ");    
+      Serial.println(speed);  
+    }    
 }
 
 void onCadence()
 {
   unsigned long timeNow = millis();
-  if (timeNow - cadenceTimes[0] < 200) //debouncing
+  if (timeNow - cadenceTimes[0] < 200) // eliminacja zaklocen (debouncing)
   return;
 
   cadenceTimes[1] = cadenceTimes[0];
@@ -467,12 +491,12 @@ void switchBluetooth()
       {
         Serial.println("DigitalWriteLow");
         digitalWrite(btOnOffPin, LOW);
-        screenRefresh(5);
+        screenRefresh(4);
       }
       else 
       {
         Serial.println("DigitalWriteHigh");
         digitalWrite(btOnOffPin, HIGH);
-        screenRefresh(5);
+        screenRefresh(4);
       }
 }
