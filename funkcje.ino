@@ -177,7 +177,6 @@ void showScreen_1() // temperatury
 void showScreen_3() // cisnienie i wysokosc
 {
   showStatusBar();
-
   tft.setTextSize(2);
   tft.setCursor(0,20);
   tft.setTextColor(ST7735_YELLOW,ST7735_BLACK);
@@ -197,7 +196,7 @@ void showScreen_3() // cisnienie i wysokosc
   tft.print("%");
 }
 
-void showScreen_2() // 
+void showScreen_2() // Magnetometr
 {
   showStatusBar();
 

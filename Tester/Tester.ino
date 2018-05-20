@@ -27,7 +27,6 @@ Adafruit_SSD1306 display(OLED_RESET);
  bool speedPinState = false;
 
  unsigned long unitDistance = 2073; // dystans jednego obrotu kola
- unsigned long halfUnitDistance = unitDistance /2;
  
  volatile bool speedSelected = false;
  volatile bool modeChanged = true;
