@@ -231,7 +231,7 @@ void loop() {
     temp2 = clock.readTemperature();
     temp3 = dht.getTemperature();
     atmPressure = bme.readPressure();
-    altitude = bme.readAltitude(1008); 
+    altitude = bme.readAltitude(1018); 
     humidity = dht.getHumidity();
     analogVoltage = analogRead(A0);
     analogCharging = analogRead(A1);

@@ -302,9 +302,11 @@ float compassHeading(HMC5883L compass) // kod pochodzi z przykladu ze strony htt
   float heading = atan2(norm.YAxis, norm.XAxis);
 
   // Ustawienie kata deklinacji dla Sosnowca 5'1E (positive)
+  // Ustawienie kata deklinacji dla Dublina 3'W (Negative)
   // Formula: (deg + (min / 60.0)) / (180 / M_PI);
-  //float declinationAngle = (5.0 + (1.0 / 60.0)) / (180 /M_PI);
-  float declinationAngle = 0.08756;
+  //float declinationAngle = (5.0 + (1.0 / 60.0)) / (180 /M_PI); //Sosnowiec = 0.08756;
+  
+  float declinationAngle = 0.05234; //Dublin
 
   // Korekta katow
   if (heading < 0)
